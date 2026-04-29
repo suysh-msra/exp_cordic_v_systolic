@@ -212,13 +212,27 @@ rounding steps).
 
 | | Systolic (N=8) | CORDIC (16 iter) |
 |---|---|---|
-| **Latency** | 7 cycles | 18 cycles |
+| **Latency** | 8 cycles | 18 cycles |
 | **Throughput** | **1 result/cycle** | 1 result/18 cycles |
 | **Throughput ratio** | **18×** higher | 1× (baseline) |
 
 The systolic array's fully-pipelined datapath delivers dramatically higher
 throughput. This is the decisive advantage when computing $e^x$ in a
 streaming context (e.g. softmax over a vector of logits).
+
+**Streaming throughput verified:** A dedicated testbench
+(`tb/tb_systolic_streaming.v`) injects 12 different x values on 12
+consecutive clock cycles. After the initial 8-cycle pipeline fill, results
+emerge one per cycle — each matching its corresponding input to within
+0.06% error. The key mechanism that enables this is the **x-forwarding**
+in each PE (`x_out <= x_in`): every PE carries its own copy of x through
+the pipeline, so there is no cross-contamination between in-flight samples.
+
+A subtle correctness requirement is that the range-reduction shift factor
+`k` must be pipelined with exactly the same depth as the systolic datapath
+(N_TERMS stages). An off-by-one in this shadow pipeline causes power-of-2
+scaling errors that are invisible in single-shot tests (where x_in is
+held constant) but appear immediately under streaming.
 
 CORDIC can be unrolled/pipelined too, but each stage still contains the
 shift-and-add logic, so the area advantage erodes.
@@ -304,7 +318,8 @@ cordic_v_systolic/
 │   ├── cordic_exp.v             ← CORDIC hyperbolic engine
 │   └── cordic_exp_top.v         ← CORDIC + range reduction + 2^k scaling
 ├── tb/
-│   └── tb_exp_compare.v         ← comparative testbench
+│   ├── tb_exp_compare.v         ← comparative testbench (accuracy)
+│   └── tb_systolic_streaming.v  ← streaming throughput proof
 └── sim_results.log              ← captured simulation output
 ```
 
