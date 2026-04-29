@@ -33,9 +33,14 @@ module systolic_exp_top #(
         .k_out (k)
     );
 
-    // k pipeline: N_TERMS-1 stages to align with systolic pipeline depth
-    // k_pipe[0] captured same cycle as s0, k_pipe[N_TERMS-2] aligns with done
-    localparam K_DEPTH = N_TERMS - 1;
+    // k pipeline must match FULL systolic pipeline depth:
+    //   1 cycle (s0 register) + N_TERMS-1 cycles (PE[1]..PE[N_TERMS-1])
+    //   = N_TERMS cycles from capture to done.
+    //
+    // k_pipe[0] captures at the same posedge as s0. After N_TERMS-1 more
+    // posedges, done fires and we need k_pipe[N_TERMS-1] to hold the
+    // original k. So K_DEPTH = N_TERMS.
+    localparam K_DEPTH = N_TERMS;
     reg signed [7:0] k_pipe [0:K_DEPTH-1];
     integer i;
 
